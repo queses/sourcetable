@@ -1,10 +1,11 @@
+from abc import abstractmethod
 from collections import defaultdict
 import csv
 from functools import cached_property
 import io
 import json
 import base64
-from typing import List, Optional, Tuple, Any
+from typing import List, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import (
     ColumnElement,
@@ -30,6 +31,7 @@ from app.schemas import (
 )
 from app.services.cell_service import CellService
 
+_SORT_VALUE_COL = "sort_value"
 
 class RowService:
     def __init__(self, db: AsyncSession, cell_service: CellService):
@@ -162,22 +164,16 @@ class RowService:
                     ),
                 )
 
-                # Build sort expression
-                if sort_column.type == ColumnTypeEnum.NUMBER.value:
-                    sort_expr = func.cast(sort_cell_alias.value, Numeric)
-                else:
-                    sort_expr = sort_cell_alias.value
-
+                search_cls = self._search_classes[sort_column.type]
+                sort_expr = search_cls.build_sort_expression(sort_cell_alias)
                 # Add sort expression to select for cursor key
-                base_query = base_query.add_columns(sort_expr.label("sort_value"))
+                base_query = base_query.add_columns(sort_expr.label(_SORT_VALUE_COL))
 
                 # Apply cursor condition
                 if cursor_row_id is not None and cursor_sort_value is not None:
                     cursor_condition = None
 
-                    cursor_condition = self._search_classes[
-                        sort_column.type
-                    ].build_cursor_condition(
+                    cursor_condition = search_cls.build_cursor_condition(
                         sort_expr, cursor_sort_value, cursor_row_id, sort_asc
                     )
                     if cursor_condition is not None:
@@ -188,22 +184,26 @@ class RowService:
 
                 # Apply ordering
                 if sort_asc:
-                    base_query = base_query.order_by(sort_expr.asc(), Row.id.asc())
+                    base_query = base_query.order_by(
+                        sort_expr.asc().nulls_last(), Row.id.asc()
+                    )
                 else:
-                    base_query = base_query.order_by(sort_expr.desc(), Row.id.asc())
+                    base_query = base_query.order_by(
+                        sort_expr.desc().nulls_last(), Row.id.asc()
+                    )
             else:
                 # Invalid sort column, fall back to row_id sorting
                 if cursor_row_id:
                     base_query = base_query.where(Row.id > cursor_row_id)
                 base_query = base_query.order_by(Row.id.asc())
-                base_query = base_query.add_columns(Row.id.label("sort_value"))
+                base_query = base_query.add_columns(Row.id.label(_SORT_VALUE_COL))
         else:
             # No sort column, use row_id
             if cursor_row_id:
                 base_query = base_query.where(Row.id > cursor_row_id)
             base_query = base_query.order_by(Row.id.asc())
             # Add row_id as sort_value for consistency
-            base_query = base_query.add_columns(Row.id.label("sort_value"))
+            base_query = base_query.add_columns(Row.id.label(_SORT_VALUE_COL))
 
         # Apply filters by joining with filter cells
         filter_conditions = []
@@ -215,7 +215,8 @@ class RowService:
                     continue  # Skip invalid column_id
 
                 filter_cell_alias = aliased(Cell, name=f"filter_cell_{idx}")
-                condition = self._search_classes[column.type].build_condition(
+                search_cls = self._search_classes[column.type]
+                condition = search_cls.build_condition(
                     filter_cell_alias, column_filter, column
                 )
                 if condition is not None:
@@ -287,7 +288,7 @@ class RowService:
 
         return response_rows, next_cursor, previous_cursor
 
-    def _encode_cursor(self, row_id: int, sort_value: Any) -> str:
+    def _encode_cursor(self, row_id: int, sort_value: object) -> str:
         """Encode cursor as base64 JSON string."""
         if sort_value is not None:
             cursor_data = {"row_id": row_id, "sort_value": str(sort_value)}
@@ -296,7 +297,7 @@ class RowService:
         cursor_json = json.dumps(cursor_data)
         return base64.urlsafe_b64encode(cursor_json.encode()).decode()
 
-    def _decode_cursor(self, cursor: str) -> Tuple[Optional[int], Optional[Any]]:
+    def _decode_cursor(self, cursor: str) -> Tuple[Optional[int], Optional[object]]:
         """Decode cursor from base64 JSON string."""
         try:
             cursor_json = base64.urlsafe_b64decode(cursor.encode()).decode()
@@ -489,44 +490,46 @@ class RowService:
 class _BaseTypeSearch:
     """Base class for column type search/cursor condition building."""
 
-    @staticmethod
+    @classmethod
     def build_cursor_condition(
-        sort_expr: Any,
-        cursor_sort_value: Any,
+        cls,
+        sort_expr: ColumnElement,
+        cursor_sort_value: object,
         cursor_row_id: int,
         sort_asc: bool,
-    ) -> Optional[Any]:
+    ) -> Optional[ColumnElement]:
         """
         Build SQL cursor condition for text/string comparison.
         Returns None if condition should be skipped.
         Returns SQLAlchemy condition otherwise.
         """
-        # Text/string comparison
-        if sort_asc:
-            cursor_condition = or_(
-                sort_expr > cursor_sort_value,
-                and_(
-                    sort_expr == cursor_sort_value,
-                    Row.id > cursor_row_id,
-                ),
-            )
-        else:
-            cursor_condition = or_(
-                sort_expr < cursor_sort_value,
-                and_(
-                    sort_expr == cursor_sort_value,
-                    Row.id > cursor_row_id,
-                ),
-            )
+        value = cls._transform_sort_value(cursor_sort_value)
+        cursor_condition = or_(
+            sort_expr > value if sort_asc else sort_expr < value,
+            and_(
+                or_(sort_expr.is_(None), sort_expr == value),
+                Row.id > cursor_row_id,
+            ),
+        )
+
         return cursor_condition
 
     @staticmethod
+    def build_sort_expression(sort_cell_alias: type[Cell]) -> ColumnElement:
+        return func.nullif(sort_cell_alias.value, "")
+
+    @staticmethod
+    def _transform_sort_value(cursor_sort_value: object) -> object:
+        return cursor_sort_value
+
+    @staticmethod
+    @abstractmethod
     def build_condition(
         cell_alias: type[Cell],
         column_filter: ColumnFilter,
         column: TableColumn,
     ) -> ColumnElement[bool] | None:
-        return None
+        raise NotImplementedError()
 
 
 class _TextSearch(_BaseTypeSearch):
@@ -596,44 +599,21 @@ class _NumberSearch(_BaseTypeSearch):
         if not conditions:
             return None  # Skip if no range values provided
 
-        return and_(*conditions)
+        return and_(
+            *conditions,
+            cell_alias.value != "",
+        )
 
     @staticmethod
-    def build_cursor_condition(
-        sort_expr: Any,
-        cursor_sort_value: Any,
-        cursor_row_id: int,
-        sort_asc: bool,
-    ) -> Optional[Any]:
-        """
-        Build SQL cursor condition for NUMBER column type sorting.
-        Returns None if condition should be skipped.
-        Returns SQLAlchemy condition otherwise.
-        """
-        # Cast cursor_sort_value to match sort_expr type
+    def build_sort_expression(sort_cell_alias: type[Cell]) -> ColumnElement:
+        return func.cast(func.nullif(sort_cell_alias.value, ""), Numeric)
+
+    @staticmethod
+    def _transform_sort_value(cursor_sort_value: object) -> object:
         try:
-            cursor_sort_value_numeric = float(cursor_sort_value)
+            return float(cursor_sort_value)
         except (ValueError, TypeError):
-            cursor_sort_value_numeric = None
-        if cursor_sort_value_numeric is not None:
-            if sort_asc:
-                cursor_condition = or_(
-                    sort_expr > cursor_sort_value_numeric,
-                    and_(
-                        sort_expr == cursor_sort_value_numeric,
-                        Row.id > cursor_row_id,
-                    ),
-                )
-            else:
-                cursor_condition = or_(
-                    sort_expr < cursor_sort_value_numeric,
-                    and_(
-                        sort_expr == cursor_sort_value_numeric,
-                        Row.id > cursor_row_id,
-                    ),
-                )
-            return cursor_condition
-        return None
+            return None
 
 
 class _BooleanSearch(_BaseTypeSearch):
@@ -655,4 +635,11 @@ class _BooleanSearch(_BaseTypeSearch):
 
         # Convert boolean to "1" or "0" to match how values are stored in cells
         bool_str = "1" if column_filter.boolean_value else "0"
-        return cell_alias.value == bool_str
+        return and_(
+            cell_alias.value == bool_str,
+            cell_alias.value != "",
+        )
+
+    @staticmethod
+    def build_sort_expression(sort_cell_alias: type[Cell]) -> ColumnElement:
+        return func.cast(func.nullif(sort_cell_alias.value, ""), Numeric)
