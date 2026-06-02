@@ -1,15 +1,19 @@
 # SourceTable
 
-A full-stack data management application with AI-powered data generation capabilities.
-It's a pet-project inspired by [freckle.io](https://freckle.io) implemented in 2 days to test AI coding agent capabilities.
+Run AI queries in bulk across lists of websites to investigate companies, projects, or any topic with a web presence.
+
+SourceTable combines the flexibility of spreadsheets with the power of AI agents to automate data collection and analysis.
+
+Built in 2 days as a pet project 🐶 Not production-ready 🚧. Inspired by [freckle.io](https://freckle.io).
 
 ## Stack
 
 **Backend:**
 - FastAPI (Python 3.11)
 - SQLAlchemy (async) with PostgreSQL
-- Alembic for migrations
-- OpenRouter for AI agents
+- Alembic
+- OpenRouter
+- Auth0
 
 **Frontend:**
 - Next.js 14 (React, TypeScript)
