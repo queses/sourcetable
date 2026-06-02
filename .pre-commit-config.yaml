@@ -1,0 +1,25 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: bash -c 'cd backend && poetry run ruff check --fix .'
+        language: system
+        types: [python]
+        files: ^backend/.*\.py$
+      - id: ruff-format
+        name: ruff format
+        entry: bash -c 'cd backend && poetry run ruff format .'
+        language: system
+        types: [python]
+        files: ^backend/.*\.py$
+      - id: eslint-check
+        name: eslint check
+        entry: bash -c 'cd frontend && npm run lint'
+        language: system
+        files: ^frontend/.*\.(js|jsx|ts|tsx)$
+      - id: prettier-format
+        name: prettier format
+        entry: bash -c 'cd frontend && npm run format'
+        language: system
+        files: ^frontend/.*\.(js|jsx|ts|tsx|json|css|scss|md)$
