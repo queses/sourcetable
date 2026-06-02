@@ -7,9 +7,8 @@ echo "🚀 Starting SourceTable..."
 
 # Check if Poetry is installed
 if ! command -v poetry &> /dev/null; then
-    echo "📦 Installing Poetry..."
-    curl -sSL https://install.python-poetry.org | python3 -
-    export PATH="$HOME/.local/bin:$PATH"
+    echo "❌ Poetry is not installed. Run to install: curl -sSL https://install.python-poetry.org | python3 -"
+    exit 1
 fi
 
 # Install backend dependencies
@@ -29,9 +28,9 @@ if [ ! -d "node_modules" ]; then
 fi
 
 # Start FastAPI backend in background
-echo "🔧 Starting FastAPI backend on port 8000..."
+echo "🔧 Starting FastAPI backend on port 8008..."
 cd ../backend
-poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+poetry run uvicorn app.main:app --host 0.0.0.0 --port 8008 &
 BACKEND_PID=$!
 
 # Wait a moment for backend to start
@@ -44,9 +43,9 @@ npm run dev &
 FRONTEND_PID=$!
 
 echo "✅ Application started!"
-echo "📡 Backend API: http://localhost:8000"
+echo "📡 Backend API: http://localhost:8008"
 echo "🌐 Frontend: http://localhost:3000"
-echo "📚 API Docs: http://localhost:8000/docs"
+echo "📚 API Docs: http://localhost:8008/docs"
 
 # Wait for both processes
 wait $BACKEND_PID $FRONTEND_PID

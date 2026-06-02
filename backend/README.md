@@ -29,13 +29,13 @@ FastAPI backend with AI-powered data generation.
 
 4. **Start server:**
    ```bash
-   poetry run uvicorn app.main:app --reload
+   poetry run uvicorn app.main:app --reload --port 8008
    ```
 
 ## API
 
-- Base URL: `http://localhost:8000`
-- Docs: `http://localhost:8000/docs`
+- Base URL: `http://localhost:8008`
+- Docs: `http://localhost:8008/docs`
 - Endpoints:
   - `/api/tables/*` (CRUD for tables, columns, rows, cells)
   - `/api/auth/login` - Auth0 login endpoint

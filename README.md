@@ -70,9 +70,9 @@ It's a pet-project inspired by [freckle.io](https://freckle.io) implemented in 2
 
    Or manually:
    ```bash
-   # Backend (port 8000)
+   # Backend (port 8008)
    cd backend
-   poetry run uvicorn app.main:app --reload
+   poetry run uvicorn app.main:app --reload --port 8008
 
    # Frontend (port 3000)
    cd frontend
@@ -83,5 +83,5 @@ It's a pet-project inspired by [freckle.io](https://freckle.io) implemented in 2
 ### Access
 
 - Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+- Backend API: http://localhost:8008
+- API Docs: http://localhost:8008/docs
