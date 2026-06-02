@@ -260,7 +260,7 @@ class Agent:
             return value
 
         except Exception as e:
-            logger.error(f"Error processing cell {cell_id}: {e}", exc_info=True)
+            logger.error(f"Error processing cell {cell_id}: {e}", exc_info=e)
             # Update state to failed on error
             await db.execute(
                 update(Cell)
@@ -301,5 +301,5 @@ class Agent:
             )
         except Exception as e:
             # State is already updated to FAILED in process_cell
-            logger.error(f"Failed to process cell {cell_id}: {e}", exc_info=True)
+            logger.error(f"Failed to process cell {cell_id}: {e}", exc_info=e)
             raise e
