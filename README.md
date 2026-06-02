@@ -4,7 +4,14 @@ Run AI queries in bulk across lists of websites to investigate companies, projec
 
 SourceTable combines the flexibility of spreadsheets with the power of AI agents to automate data collection and analysis.
 
-Built in 2 days as a pet project 🐶 Not production-ready 🚧. Inspired by [freckle.io](https://freckle.io).
+> Built in 2 days as a pet project 🐶. Not production-ready 🚧. Inspired by [freckle.io](https://freckle.io).
+
+## Demo
+
+<img width="1280" height="757" alt="sourcetable-demo-1" src="https://github.com/user-attachments/assets/34dbd463-96e3-4bea-a1e8-830a21c5b7c9" />
+
+<img width="1280" height="757" alt="sourcetable-demo-3" src="https://github.com/user-attachments/assets/a745608b-811e-4cdb-9445-dc8643e5c0ed" />
+
 
 ## Stack
 
