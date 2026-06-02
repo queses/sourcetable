@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: sourcetable-backend
+    env: python
+    region: frankfurt
+    plan: free
+    rootDirectory: backend
+    buildCommand: pip install poetry && poetry install --no-interaction --no-cache
+    startCommand: poetry run uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: POETRY_VIRTUALENVS_CREATE
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        sync: false
+      - key: AUTH0_DOMAIN
+        sync: false
+      - key: AUTH0_CLIENT_ID
+        sync: false
+      - key: AUTH0_CLIENT_SECRET
+        sync: false
+      - key: AUTH0_AUDIENCE
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false
+      - key: EMAIL_WHITELIST
+        sync: false
